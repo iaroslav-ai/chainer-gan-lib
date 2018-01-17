@@ -118,7 +118,35 @@ def main():
     opt_gen = make_optimizer(generator)
     opt_dis = make_optimizer(discriminator)
 
-    train_dataset = Cifar10Dataset()
+
+    #train_dataset = Cifar10Dataset()
+    from chainer.dataset import dataset_mixin
+    from scipy.misc import imresize
+    import pickle as pc
+
+    # use instead polyvore
+    class PolyvoreDataset(dataset_mixin.DatasetMixin):
+        def __init__(self, test=False):
+            Y, _ = pc.load(open('/media/iaroslav/Data/polyvore/annotations/polyvore.bin', 'rb'))
+            Y = np.array([imresize(v, (32, 32)) for v in Y])
+            Y = Y[:, :, :, :3]
+            Y = Y.astype('float')
+            Y -= np.min(Y)
+            Y /= np.max(Y)
+            Y = np.transpose(Y, (0, 3, 1, 2))
+            Y = Y * 2 - 1.0
+            self.ims = Y # make it in range [-1.0, 1.0]
+            print(Y.min(), Y.max(), Y.shape)
+            print("load polyvore dataset, shape: ", self.ims.shape)
+
+        def __len__(self):
+            return self.ims.shape[0]
+
+        def get_example(self, i):
+            return self.ims[i]
+
+    train_dataset = PolyvoreDataset()
+
     train_iter = chainer.iterators.SerialIterator(train_dataset, args.batchsize)
 
     # Set up a trainer
